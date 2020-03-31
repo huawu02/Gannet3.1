@@ -29,219 +29,254 @@ else
 end
 
 MRS_struct.p.GE.rdbm_rev_num(ii) = rdbm_rev_num;
-chkRev = {'14.3', '16', '24', '20.006', '20.007', '26.002'}; % GERead mods tested with these revisions only
+chkRev = {'14.3', '16', '24', '20.006', '20.007', '26.002', '27'}; % GERead mods tested with these revisions only
 if ~any(strcmp(num2str(rdbm_rev_num), chkRev))
     warning('GERead not fully functional with header revision number %g!', rdbm_rev_num);
 end
 
-% RTN 2018
-% Added flexible P-file revision support
-% Values are read from rdb_hdr and image sub-headers
-% Position can be found in rdbm.h (RDB_HEADER_REC) and imagedb.h (MRIMAGEDATATYPE)
+% rev 27.000 header (RX27.0 R01 UHP)
+if rdbm_rev_num == 27
+    fseek(fid, 4, 'bof');       pfile_header_size                       = fread(fid, 1, 'int32');           % rdb_hdr.off_data
+    fseek(fid, 146, 'bof');     nechoes                                 = fread(fid, 1, 'int16');           % rdb_hdr.nechoes
+    fseek(fid, 148, 'bof');     nex                                     = fread(fid, 1, 'int16');           % rdb_hdr.navs
+    fseek(fid, 150, 'bof');     nframes                                 = fread(fid, 1, 'int16');           % rdb_hdr.nframes
+    fseek(fid, 158, 'bof');     point_size                              = fread(fid, 1, 'int16');           % rdb_hdr.point_size
+    fseek(fid, 178, 'bof');     MRS_struct.p.npoints                    = fread(fid, 1, 'int16');           % rdb_hdr.da_xres
+    fseek(fid, 180, 'bof');     MRS_struct.p.nrows                      = fread(fid, 1, 'int16');           % rdb_hdr.da_yres
+    fseek(fid, 264, 'bof');     start_recv                              = fread(fid, 1, 'int16');           % rdb_hdr.dab[0]
+    fseek(fid, 266, 'bof');     stop_recv                               = fread(fid, 1, 'int16');           % rdb_hdr.dab[1]
+    fseek(fid, 280, 'bof');     MRS_struct.p.sw                         = fread(fid, 1, 'float32');         % rdb_hdr.user0
+    fseek(fid, 296, 'bof');     dataframes                              = fread(fid, 1, 'float32') / nex;   % rdb_hdr.user4
+    fseek(fid, 356, 'bof');     refframes                               = fread(fid, 1, 'float32');         % rdb_hdr.user19
+    fseek(fid, 488, 'bof');     MRS_struct.p.LarmorFreq                 = fread(fid, 1, 'uint32') / 1e7;    % rdb_hdr.ps_mps_freq
+    fseek(fid, 199244, 'bof');  MRS_struct.p.TE(ii)                     = fread(fid, 1, 'int32') / 1e3;     % image_hdr.te
+    fseek(fid, 199236, 'bof');  MRS_struct.p.TR(ii)                     = fread(fid, 1, 'int32') / 1e3;     % image_hdr.tr
+    fseek(fid, 198568, 'bof');  MRS_struct.p.voxdim(ii,:)               = fread(fid, 3, 'float32')';        % image_hdr.user8 : image_hdr.user10
+    fseek(fid, 198612, 'bof');  MRS_struct.p.GE.editRF.waveform(ii)     = fread(fid, 1, 'float32');         % image_hdr.user19
+    fseek(fid, 198616, 'bof');  MRS_struct.p.GE.editRF.freq_Hz(ii,:)    = fread(fid, 2, 'float32')';        % image_hdr.user20 : 21
+    fseek(fid, 198624, 'bof');  MRS_struct.p.GE.editRF.dur(ii)          = fread(fid, 1, 'float32') / 1e3;   % image_hdr.user22
+    fseek(fid, 199552, 'bof');  MRS_struct.p.ex_no                      = fread(fid, 1, 'uint16');          % image_hdr.im_exno
+    fseek(fid, 199564, 'bof');  MRS_struct.p.se_no                      = fread(fid, 1, 'int16');           % image_hdr.im_seno
 
-% RTN 2018
-% unsigned int rdb_hdr_ps_mps_freq
-% float rdb_hdr_user0
-% float rdb_hdr_user4
-% float rdb_hdr_user19
-% short rdb_hdr_nechoes
-% short rdb_hdr_navs
-% short rdb_hdr_nframes
-% short rdb_hdr_point_size
-% unsigned short rdb_hdr_da_xres
-% short rdb_hdr_da_yres
-% short rdb_hdr_dab[0].start_rcv
-% short rdb_hdr_dab[0].stop_rcv
-% int rdb_hdr_off_image
-% int rdb_hdr_off_data
-%
-% image sub-header
-% int te
-% int tr
-% float user8-10    voxel dimensions
-% float user19      rf waveform
-% float user20-21   offset frequencies
-% float user22      pulse width (-1 default)
-
-switch num2str(rdbm_rev_num)
+    nreceivers = (stop_recv - start_recv) + 1;        
+    MRS_struct.p.GE.nechoes = nechoes;
+    MRS_struct.p.GE.NEX = nex;
+    MRS_struct.p.GE.editRF.freq_ppm(ii,:) = (MRS_struct.p.GE.editRF.freq_Hz(ii,:) / MRS_struct.p.LarmorFreq(ii)) + 4.68;
     
-    case '14.3'
+else
+    %%
+    % RTN 2018
+    % Added flexible P-file revision support
+    % Values are read from rdb_hdr and image sub-headers
+    % Position can be found in rdbm.h (RDB_HEADER_REC) and imagedb.h (MRIMAGEDATATYPE)
+    
+    % RTN 2018
+    % unsigned int rdb_hdr_ps_mps_freq
+    % float rdb_hdr_user0
+    % float rdb_hdr_user4
+    % float rdb_hdr_user19
+    % short rdb_hdr_nechoes
+    % short rdb_hdr_navs
+    % short rdb_hdr_nframes
+    % short rdb_hdr_point_size
+    % unsigned short rdb_hdr_da_xres
+    % short rdb_hdr_da_yres
+    % short rdb_hdr_dab[0].start_rcv
+    % short rdb_hdr_dab[0].stop_rcv
+    % int rdb_hdr_off_image
+    % int rdb_hdr_off_data
+    %
+    % image sub-header
+    % int te
+    % int tr
+    % float user8-10    voxel dimensions
+    % float user19      rf waveform
+    % float user20-21   offset frequencies
+    % float user22      pulse width (-1 default)
+    
+    switch num2str(rdbm_rev_num)
         
-        % int
-        rdb_hdr_off_image   = 377;
-        rdb_hdr_off_data    = 368;
-        rdb_hdr_ps_mps_freq = 107;
-        
-        % float
-        rdb_hdr_user0  = 55;
-        rdb_hdr_user4  = 59;
-        rdb_hdr_user19 = 74;
-        
-        % short
-        rdb_hdr_nechoes       = 36;
-        rdb_hdr_navs          = 37;
-        rdb_hdr_nframes       = 38;
-        rdb_hdr_point_size    = 42;
-        rdb_hdr_da_xres       = 52;
-        rdb_hdr_da_yres       = 53;
-        rdb_hdr_dab_start_rcv = 101;
-        rdb_hdr_dab_stop_rcv  = 102;
-        
-        % int
-        image_te = 181;
-        image_tr = 179;
-        
-        % float
-        image_user8  = 38;
-        image_user19 = 49;
-        image_user20 = 50;
-        image_user22 = 52;
-        
-    case '16'
-        
-        % int
-        rdb_hdr_off_image   = 377;
-        rdb_hdr_off_data    = 368;
-        rdb_hdr_ps_mps_freq = 107;
-        
-        % float
-        rdb_hdr_user0  = 55;
-        rdb_hdr_user4  = 59;
-        rdb_hdr_user19 = 74;
-        
-        % short
-        rdb_hdr_nechoes       = 36;
-        rdb_hdr_navs          = 37;
-        rdb_hdr_nframes       = 38;
-        rdb_hdr_point_size    = 42;
-        rdb_hdr_da_xres       = 52;
-        rdb_hdr_da_yres       = 53;
-        rdb_hdr_dab_start_rcv = 101;
-        rdb_hdr_dab_stop_rcv  = 102;
-        
-        % int
-        image_te = 193;
-        image_tr = 191;
-        
-        % float
-        image_user8  = 50;
-        image_user19 = 61;
-        image_user20 = 62;
-        image_user22 = 64;
-        
-    case {'20.006','20.007','24'}
-        
-        % int
-        rdb_hdr_off_image   = 377;
-        rdb_hdr_off_data    = 368;
-        rdb_hdr_ps_mps_freq = 107;
-        
-        % float
-        rdb_hdr_user0  = 55;
-        rdb_hdr_user4  = 59;
-        rdb_hdr_user19 = 74;
-        
-        % short
-        rdb_hdr_nechoes       = 36;
-        rdb_hdr_navs          = 37;
-        rdb_hdr_nframes       = 38;
-        rdb_hdr_point_size    = 42;
-        rdb_hdr_da_xres       = 52;
-        rdb_hdr_da_yres       = 53;
-        rdb_hdr_dab_start_rcv = 101;
-        rdb_hdr_dab_stop_rcv  = 102;
-        
-        % int
-        image_te = 267;
-        image_tr = 265;
-        
-        % float
-        image_user8  = 98;
-        image_user19 = 109;
-        image_user20 = 110;
-        image_user22 = 112;
-        
-    case '26.002'
-        
-        % int
-        rdb_hdr_off_image   = 11;
-        rdb_hdr_off_data    = 2;
-        rdb_hdr_ps_mps_freq = 123;
-        
-        % float
-        rdb_hdr_user0  = 71;
-        rdb_hdr_user4  = 75;
-        rdb_hdr_user19 = 90;
-        
-        % short
-        rdb_hdr_nechoes       = 74;
-        rdb_hdr_navs          = 75;
-        rdb_hdr_nframes       = 76;
-        rdb_hdr_point_size    = 80;
-        rdb_hdr_da_xres       = 90;
-        rdb_hdr_da_yres       = 91;
-        rdb_hdr_dab_start_rcv = 133;
-        rdb_hdr_dab_stop_rcv  = 134;
-        
-        % int
-        image_te = 267;
-        image_tr = 265;
-        
-        % float
-        image_user8  = 98;
-        image_user19 = 109;
-        image_user20 = 110;
-        image_user22 = 112;
-        
+        case '14.3'
+            
+            % int
+            rdb_hdr_off_image   = 377;
+            rdb_hdr_off_data    = 368;
+            rdb_hdr_ps_mps_freq = 107;
+            
+            % float
+            rdb_hdr_user0  = 55;
+            rdb_hdr_user4  = 59;
+            rdb_hdr_user19 = 74;
+            
+            % short
+            rdb_hdr_nechoes       = 36;
+            rdb_hdr_navs          = 37;
+            rdb_hdr_nframes       = 38;
+            rdb_hdr_point_size    = 42;
+            rdb_hdr_da_xres       = 52;
+            rdb_hdr_da_yres       = 53;
+            rdb_hdr_dab_start_rcv = 101;
+            rdb_hdr_dab_stop_rcv  = 102;
+            
+            % int
+            image_te = 181;
+            image_tr = 179;
+            
+            % float
+            image_user8  = 38;
+            image_user19 = 49;
+            image_user20 = 50;
+            image_user22 = 52;
+            
+        case '16'
+            
+            % int
+            rdb_hdr_off_image   = 377;
+            rdb_hdr_off_data    = 368;
+            rdb_hdr_ps_mps_freq = 107;
+            
+            % float
+            rdb_hdr_user0  = 55;
+            rdb_hdr_user4  = 59;
+            rdb_hdr_user19 = 74;
+            
+            % short
+            rdb_hdr_nechoes       = 36;
+            rdb_hdr_navs          = 37;
+            rdb_hdr_nframes       = 38;
+            rdb_hdr_point_size    = 42;
+            rdb_hdr_da_xres       = 52;
+            rdb_hdr_da_yres       = 53;
+            rdb_hdr_dab_start_rcv = 101;
+            rdb_hdr_dab_stop_rcv  = 102;
+            
+            % int
+            image_te = 193;
+            image_tr = 191;
+            
+            % float
+            image_user8  = 50;
+            image_user19 = 61;
+            image_user20 = 62;
+            image_user22 = 64;
+            
+        case {'20.006','20.007','24'}
+            
+            % int
+            rdb_hdr_off_image   = 377;
+            rdb_hdr_off_data    = 368;
+            rdb_hdr_ps_mps_freq = 107;
+            
+            % float
+            rdb_hdr_user0  = 55;
+            rdb_hdr_user4  = 59;
+            rdb_hdr_user19 = 74;
+            
+            % short
+            rdb_hdr_nechoes       = 36;
+            rdb_hdr_navs          = 37;
+            rdb_hdr_nframes       = 38;
+            rdb_hdr_point_size    = 42;
+            rdb_hdr_da_xres       = 52;
+            rdb_hdr_da_yres       = 53;
+            rdb_hdr_dab_start_rcv = 101;
+            rdb_hdr_dab_stop_rcv  = 102;
+            
+            % int
+            image_te = 267;
+            image_tr = 265;
+            
+            % float
+            image_user8  = 98;
+            image_user19 = 109;
+            image_user20 = 110;
+            image_user22 = 112;
+            
+        case '26.002'
+            
+            % int
+            rdb_hdr_off_image   = 11;
+            rdb_hdr_off_data    = 2;
+            rdb_hdr_ps_mps_freq = 123;
+            
+            % float
+            rdb_hdr_user0  = 71;
+            rdb_hdr_user4  = 75;
+            rdb_hdr_user19 = 90;
+            
+            % short
+            rdb_hdr_nechoes       = 74;
+            rdb_hdr_navs          = 75;
+            rdb_hdr_nframes       = 76;
+            rdb_hdr_point_size    = 80;
+            rdb_hdr_da_xres       = 90;
+            rdb_hdr_da_yres       = 91;
+            rdb_hdr_dab_start_rcv = 133;
+            rdb_hdr_dab_stop_rcv  = 134;
+            
+            % int
+            image_te = 267;
+            image_tr = 265;
+            
+            % float
+            image_user8  = 98;
+            image_user19 = 109;
+            image_user20 = 110;
+            image_user22 = 112;
+            
+    end
+    
+    % Read rdb header as short, int and float
+    fseek(fid, 0, 'bof');
+    hdr_value = fread(fid, rdb_hdr_dab_stop_rcv, 'integer*2');
+    fseek(fid, 0, 'bof');
+    f_hdr_value = fread(fid, rdb_hdr_user19, 'real*4');
+    fseek(fid, 0, 'bof');
+    i_hdr_value = fread(fid, max(rdb_hdr_off_image, rdb_hdr_ps_mps_freq), 'integer*4');
+    
+    if rdbm_rev_num > 11.0
+        pfile_header_size = i_hdr_value(rdb_hdr_off_data);
+    end
+    
+    MRS_struct.p.LarmorFreq(ii) = i_hdr_value(rdb_hdr_ps_mps_freq)/1e7;
+    MRS_struct.p.sw(ii) = f_hdr_value(rdb_hdr_user0);
+    
+    nechoes = hdr_value(rdb_hdr_nechoes);
+    MRS_struct.p.GE.nechoes = nechoes;
+    nex = hdr_value(rdb_hdr_navs);
+    MRS_struct.p.GE.NEX = nex;
+    nframes = hdr_value(rdb_hdr_nframes);
+    point_size = hdr_value(rdb_hdr_point_size);
+    MRS_struct.p.npoints(ii) = hdr_value(rdb_hdr_da_xres);
+    MRS_struct.p.nrows(ii) = hdr_value(rdb_hdr_da_yres);
+    
+    start_recv = hdr_value(rdb_hdr_dab_start_rcv);
+    stop_recv = hdr_value(rdb_hdr_dab_stop_rcv);
+    nreceivers = (stop_recv - start_recv) + 1;
+    
+    % RTN 2018
+    dataframes = f_hdr_value(rdb_hdr_user4)/nex;
+    refframes = f_hdr_value(rdb_hdr_user19);
+    
+    % Read image header as int and float
+    % MM (170118): Find TE/TR
+    fseek(fid, i_hdr_value(rdb_hdr_off_image), 'bof');
+    t_hdr_value = fread(fid, image_te, 'integer*4');
+    fseek(fid, i_hdr_value(rdb_hdr_off_image), 'bof');
+    o_hdr_value = fread(fid, image_user22, 'real*4');
+    MRS_struct.p.TE(ii) = t_hdr_value(image_te)/1e3;
+    MRS_struct.p.TR(ii) = t_hdr_value(image_tr)/1e3;
+    
+    % MM (170127): Find voxel dimensions and edit pulse parameters
+    MRS_struct.p.voxdim(ii,:) = o_hdr_value(image_user8:image_user8+2)';
+    MRS_struct.p.GE.editRF.waveform(ii) = o_hdr_value(image_user19);
+    MRS_struct.p.GE.editRF.freq_Hz(ii,:) = o_hdr_value(image_user20:image_user20+1)';
+    MRS_struct.p.GE.editRF.freq_ppm(ii,:) = (MRS_struct.p.GE.editRF.freq_Hz(ii,:) / MRS_struct.p.LarmorFreq(ii)) + 4.68;
+    MRS_struct.p.GE.editRF.dur(ii) = o_hdr_value(image_user22)/1e3;
+    
+%%
 end
 
-% Read rdb header as short, int and float
-fseek(fid, 0, 'bof');
-hdr_value = fread(fid, rdb_hdr_dab_stop_rcv, 'integer*2');
-fseek(fid, 0, 'bof');
-f_hdr_value = fread(fid, rdb_hdr_user19, 'real*4');
-fseek(fid, 0, 'bof');
-i_hdr_value = fread(fid, max(rdb_hdr_off_image, rdb_hdr_ps_mps_freq), 'integer*4');
-
-if rdbm_rev_num > 11.0
-    pfile_header_size = i_hdr_value(rdb_hdr_off_data);
-end
-
-MRS_struct.p.LarmorFreq(ii) = i_hdr_value(rdb_hdr_ps_mps_freq)/1e7;
-MRS_struct.p.sw(ii) = f_hdr_value(rdb_hdr_user0);
-
-nechoes = hdr_value(rdb_hdr_nechoes);
-MRS_struct.p.GE.nechoes = nechoes;
-nex = hdr_value(rdb_hdr_navs);
-MRS_struct.p.GE.NEX = nex;
-nframes = hdr_value(rdb_hdr_nframes);
-point_size = hdr_value(rdb_hdr_point_size);
-MRS_struct.p.npoints(ii) = hdr_value(rdb_hdr_da_xres);
-MRS_struct.p.nrows(ii) = hdr_value(rdb_hdr_da_yres);
-
-start_recv = hdr_value(rdb_hdr_dab_start_rcv);
-stop_recv = hdr_value(rdb_hdr_dab_stop_rcv);
-nreceivers = (stop_recv - start_recv) + 1;
-
-% RTN 2018
-dataframes = f_hdr_value(rdb_hdr_user4)/nex;
-refframes = f_hdr_value(rdb_hdr_user19);
-
-% Read image header as int and float
-% MM (170118): Find TE/TR
-fseek(fid, i_hdr_value(rdb_hdr_off_image), 'bof');
-t_hdr_value = fread(fid, image_te, 'integer*4');
-fseek(fid, i_hdr_value(rdb_hdr_off_image), 'bof');
-o_hdr_value = fread(fid, image_user22, 'real*4');
-MRS_struct.p.TE(ii) = t_hdr_value(image_te)/1e3;
-MRS_struct.p.TR(ii) = t_hdr_value(image_tr)/1e3;
-
-% MM (170127): Find voxel dimensions and edit pulse parameters
-MRS_struct.p.voxdim(ii,:) = o_hdr_value(image_user8:image_user8+2)';
-MRS_struct.p.GE.editRF.waveform(ii) = o_hdr_value(image_user19);
-MRS_struct.p.GE.editRF.freq_Hz(ii,:) = o_hdr_value(image_user20:image_user20+1)';
-MRS_struct.p.GE.editRF.freq_ppm(ii,:) = (MRS_struct.p.GE.editRF.freq_Hz(ii,:) / MRS_struct.p.LarmorFreq(ii)) + 4.68;
-MRS_struct.p.GE.editRF.dur(ii) = o_hdr_value(image_user22)/1e3;
 % RTN 2018: check for default value (-1) of pulse length
 if MRS_struct.p.GE.editRF.dur(ii) <= 0
     MRS_struct.p.GE.editRF.dur(ii) = 16;

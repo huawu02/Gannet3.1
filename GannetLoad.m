@@ -691,6 +691,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                 clf(101);
             end
             h = figure(101);
+            set(h, 'Visible', 'off');
             % Open figure in center of screen
             scr_sz = get(0, 'ScreenSize');
             fig_w = 1000;
@@ -851,8 +852,10 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             end
             
             % Create output folder
-            if ~exist(fullfile(pwd, 'GannetLoad_output'),'dir')
-                mkdir(fullfile(pwd, 'GannetLoad_output'));
+            if ~isdeployed
+                if ~exist(fullfile(pwd, 'GannetLoad_output'),'dir')
+                    mkdir(fullfile(pwd, 'GannetLoad_output'));
+                end
             end
             
             % Save PDF
@@ -860,10 +863,14 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             set(h,'PaperSize',[11 8.5]);
             set(h,'PaperPosition',[0 0 11 8.5]);
             
-            if strcmpi(MRS_struct.p.vendor,'Philips_data')
-                pdfname = fullfile(pwd, 'GannetLoad_output', [fullpath '_' vox{kk} '_load.pdf']);
+            if ~isdeployed
+                if strcmpi(MRS_struct.p.vendor,'Philips_data')
+                    pdfname = fullfile(pwd, 'GannetLoad_output', [fullpath '_' vox{kk} '_load.pdf']);
+                else
+                    pdfname = fullfile(pwd, 'GannetLoad_output', [metabfile_nopath '_' vox{kk} '_load.pdf']);
+                end
             else
-                pdfname = fullfile(pwd, 'GannetLoad_output', [metabfile_nopath '_' vox{kk} '_load.pdf']);
+                pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_MRSLoad.pdf'];
             end
             saveas(h, pdfname);
             

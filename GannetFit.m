@@ -38,7 +38,7 @@ freq = MRS_struct.spec.freq;
 lsqopts = optimset('lsqcurvefit');
 lsqopts = optimset(lsqopts,'MaxIter',800,'TolX',1e-4,'TolFun',1e-4,'Display','off');
 nlinopts = statset('nlinfit');
-nlinopts = statset(nlinopts,'MaxIter',400,'TolX',1e-6,'TolFun',1e-6,'FunValCheck','off');
+nlinopts = statset(nlinopts,'MaxIter',400,'TolX',1e-6,'TolFun',1e-6,'FunValCheck','off','Display','off');
 
 warning('off','stats:nlinfit:ModelConstantWRTParam');
 warning('off','stats:nlinfit:IllConditionedJacobian');
@@ -535,6 +535,7 @@ for kk = 1:length(vox)
                     clf(102);
                 end
                 h = figure(102);
+                set(gcf,'Visible', 'off');   % don't pop up the figure
                 % Open figure in center of screen
                 scr_sz = get(0,'ScreenSize');
                 fig_w = 1000;
@@ -1341,8 +1342,10 @@ for kk = 1:length(vox)
                 end
                 
                 % Create output folder
-                if ~exist(fullfile(pwd, 'GannetFit_output'),'dir')
-                    mkdir(fullfile(pwd, 'GannetFit_output'));
+                if ~isdeployed  
+                    if ~exist(fullfile(pwd, 'GannetFit_output'),'dir')
+                        mkdir(fullfile(pwd, 'GannetFit_output'));
+                    end
                 end
                 
                 % Save PDF output
@@ -1350,10 +1353,14 @@ for kk = 1:length(vox)
                 set(h,'PaperSize',[11 8.5]);
                 set(h,'PaperPosition',[0 0 11 8.5]);
                 
-                if strcmpi(MRS_struct.p.vendor,'Philips_data')
-                    pdfname = fullfile(pwd, 'GannetFit_output', [fullpath '_' target{jj} '_' vox{kk} '_fit.pdf']);
+                if ~isdeployed  
+                    if strcmpi(MRS_struct.p.vendor,'Philips_data')
+                        pdfname = fullfile(pwd, 'GannetFit_output', [fullpath '_' target{jj} '_' vox{kk} '_fit.pdf']);
+                    else
+                        pdfname = fullfile(pwd, 'GannetFit_output', [metabfile_nopath '_' target{jj} '_' vox{kk} '_fit.pdf']);
+                    end
                 else
-                    pdfname = fullfile(pwd, 'GannetFit_output', [metabfile_nopath '_' target{jj} '_' vox{kk} '_fit.pdf']);
+                    pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_MRSfit_' MRS_struct.p.target '.pdf'];
                 end
                 saveas(h, pdfname);
                 
