@@ -109,7 +109,7 @@ for ii = 1:numscans
         % Correction of institutional units only feasible if water-scaling
         % is performed, skip otherwise (GO 07/13/2017)
         if strcmp(MRS_struct.p.Reference_compound,'H2O')
-            target = MRS_struct.p.target;
+            target = {MRS_struct.p.target};
             for jj = 1:length(target)
                 if strcmp(target{jj},'GABAGlx')
                     MRS_struct.out.(vox{kk}).GABA.ConcIU_CSFcorr(ii) = ...
@@ -300,11 +300,15 @@ for ii = 1:numscans
         set(h,'PaperUnits','inches');
         set(h,'PaperSize',[11 8.5]);
         set(h,'PaperPosition',[0 0 11 8.5]);
-        
-        if strcmpi(MRS_struct.p.vendor,'Philips_data')
-            pdfname = fullfile(pwd, 'GannetSegment_output', [fullpath '_' vox{kk} '_segment.pdf']);
+       
+        if ~isdeployed
+            if strcmpi(MRS_struct.p.vendor,'Philips_data')
+                pdfname = fullfile(pwd, 'GannetSegment_output', [fullpath '_' vox{kk} '_segment.pdf']);
+            else
+                pdfname = fullfile(pwd, 'GannetSegment_output', [metabfile_nopath '_' vox{kk} '_segment.pdf']);
+            end
         else
-            pdfname = fullfile(pwd, 'GannetSegment_output', [metabfile_nopath '_' vox{kk} '_segment.pdf']);
+            pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_Segment.pdf'];
         end
         saveas(h, pdfname);
         

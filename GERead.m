@@ -20,7 +20,7 @@ else
     fclose(fid);
     fid = fopen(fname, 'r', 'ieee-le');
     fseek(fid, 0, 'bof');
-    rdbm_rev_num = fread(fid, 1, 'real*4');
+    rdbm_rev_num = round(fread(fid, 1, 'real*4'), 4);
     if rdbm_rev_num == 9.0 % 11.0 product release
         pfile_header_size = 61464;
     elseif rdbm_rev_num == 11.0 % 12.0 product release
@@ -34,8 +34,40 @@ if ~any(strcmp(num2str(rdbm_rev_num), chkRev))
     warning('GERead not fully functional with header revision number %g!', rdbm_rev_num);
 end
 
-% rev 27.000 header (RX27.0 R01 UHP)
-if rdbm_rev_num == 27
+if rdbm_rev_num == 28.002    % rev 28.002 header (RX28.0 R04 UHP)
+
+    fseek(fid, 4, 'bof');       pfile_header_size                       = fread(fid, 1, 'int32');           % rdb_hdr.off_data
+    fseek(fid, 146, 'bof');     nechoes                                 = fread(fid, 1, 'int16');           % rdb_hdr.nechoes
+    fseek(fid, 148, 'bof');     nex                                     = fread(fid, 1, 'int16');           % rdb_hdr.navs
+    fseek(fid, 150, 'bof');     nframes                                 = fread(fid, 1, 'int16');           % rdb_hdr.nframes
+    fseek(fid, 158, 'bof');     point_size                              = fread(fid, 1, 'int16');           % rdb_hdr.point_size
+    fseek(fid, 178, 'bof');     MRS_struct.p.npoints                    = fread(fid, 1, 'int16');           % rdb_hdr.da_xres
+    fseek(fid, 180, 'bof');     MRS_struct.p.nrows                      = fread(fid, 1, 'int16');           % rdb_hdr.da_yres
+    fseek(fid, 264, 'bof');     start_recv                              = fread(fid, 1, 'int16');           % rdb_hdr.dab[0]
+    fseek(fid, 266, 'bof');     stop_recv                               = fread(fid, 1, 'int16');           % rdb_hdr.dab[1]
+    fseek(fid, 280, 'bof');     MRS_struct.p.sw                         = fread(fid, 1, 'float32');         % rdb_hdr.user0
+    fseek(fid, 296, 'bof');     dataframes                              = fread(fid, 1, 'float32') / nex;   % rdb_hdr.user4
+    fseek(fid, 356, 'bof');     refframes                               = fread(fid, 1, 'float32');         % rdb_hdr.user19
+    fseek(fid, 201688, 'bof');  MRS_struct.p.LarmorFreq                 = fread(fid, 1, 'uint32') / 1e7;    % rdb_hdr.ps_mps_freq
+    fseek(fid, 207436, 'bof');  MRS_struct.p.TE(ii)                     = fread(fid, 1, 'int32') / 1e3;     % image_hdr.te
+    fseek(fid, 207428, 'bof');  MRS_struct.p.TR(ii)                     = fread(fid, 1, 'int32') / 1e3;     % image_hdr.tr
+    fseek(fid, 206756, 'bof');  MRS_struct.p.voxdim(ii,:)               = fread(fid, 3, 'float32')';        % image_hdr.user8 : image_hdr.user10
+    fseek(fid, 206768, 'bof');  MRS_struct.p.voxoff(ii,:)               = fread(fid, 3, 'float32')';        % image_hdr.user11 : image_hdr.user13
+    fseek(fid, 206800, 'bof');  MRS_struct.p.GE.editRF.waveform(ii)     = fread(fid, 1, 'float32');         % image_hdr.user19
+    fseek(fid, 206804, 'bof');  MRS_struct.p.GE.editRF.freq_Hz(ii,:)    = fread(fid, 2, 'float32')';        % image_hdr.user20 : 21
+    fseek(fid, 206812, 'bof');  MRS_struct.p.GE.editRF.dur(ii)          = fread(fid, 1, 'float32') / 1e3;   % image_hdr.user22
+    fseek(fid, 207092, 'bof');  MRS_struct.p.tlhc_RAS                   = fread(fid, 3, 'float32')';        % image_hdr.tlhc
+    fseek(fid, 207104, 'bof');  MRS_struct.p.trhc_RAS                   = fread(fid, 3, 'float32')';        % image_hdr.trhc
+    fseek(fid, 207116, 'bof');  MRS_struct.p.brhc_RAS                   = fread(fid, 3, 'float32')';        % image_hdr.brhc
+    fseek(fid, 207744, 'bof');  MRS_struct.p.ex_no                      = fread(fid, 1, 'uint16');          % image_hdr.im_exno
+    fseek(fid, 207756, 'bof');  MRS_struct.p.se_no                      = fread(fid, 1, 'int16');           % image_hdr.im_seno
+
+    nreceivers = (stop_recv - start_recv) + 1;        
+    MRS_struct.p.GE.nechoes = nechoes;
+    MRS_struct.p.GE.NEX = nex;
+    MRS_struct.p.GE.editRF.freq_ppm(ii,:) = (MRS_struct.p.GE.editRF.freq_Hz(ii,:) / MRS_struct.p.LarmorFreq(ii)) + 4.68;
+
+elseif rdbm_rev_num == 27   % rev 27.000 header (RX27.0 R01 UHP)
     fseek(fid, 4, 'bof');       pfile_header_size                       = fread(fid, 1, 'int32');           % rdb_hdr.off_data
     fseek(fid, 146, 'bof');     nechoes                                 = fread(fid, 1, 'int16');           % rdb_hdr.nechoes
     fseek(fid, 148, 'bof');     nex                                     = fread(fid, 1, 'int16');           % rdb_hdr.navs
@@ -52,9 +84,13 @@ if rdbm_rev_num == 27
     fseek(fid, 199244, 'bof');  MRS_struct.p.TE(ii)                     = fread(fid, 1, 'int32') / 1e3;     % image_hdr.te
     fseek(fid, 199236, 'bof');  MRS_struct.p.TR(ii)                     = fread(fid, 1, 'int32') / 1e3;     % image_hdr.tr
     fseek(fid, 198568, 'bof');  MRS_struct.p.voxdim(ii,:)               = fread(fid, 3, 'float32')';        % image_hdr.user8 : image_hdr.user10
+    fseek(fid, 198580, 'bof');  MRS_struct.p.voxoff(ii,:)               = fread(fid, 3, 'float32')';        % image_hdr.user11 : image_hdr.user13
     fseek(fid, 198612, 'bof');  MRS_struct.p.GE.editRF.waveform(ii)     = fread(fid, 1, 'float32');         % image_hdr.user19
     fseek(fid, 198616, 'bof');  MRS_struct.p.GE.editRF.freq_Hz(ii,:)    = fread(fid, 2, 'float32')';        % image_hdr.user20 : 21
     fseek(fid, 198624, 'bof');  MRS_struct.p.GE.editRF.dur(ii)          = fread(fid, 1, 'float32') / 1e3;   % image_hdr.user22
+    fseek(fid, 198904, 'bof');  MRS_struct.p.tlhc_RAS                   = fread(fid, 3, 'float32')';        % image_hdr.tlhc
+    fseek(fid, 198916, 'bof');  MRS_struct.p.trhc_RAS                   = fread(fid, 3, 'float32')';        % image_hdr.trhc
+    fseek(fid, 198928, 'bof');  MRS_struct.p.brhc_RAS                   = fread(fid, 3, 'float32')';        % image_hdr.brhc
     fseek(fid, 199552, 'bof');  MRS_struct.p.ex_no                      = fread(fid, 1, 'uint16');          % image_hdr.im_exno
     fseek(fid, 199564, 'bof');  MRS_struct.p.se_no                      = fread(fid, 1, 'int16');           % image_hdr.im_seno
 
@@ -127,6 +163,11 @@ else
             image_user19 = 49;
             image_user20 = 50;
             image_user22 = 52;
+            image_user11        = 41;
+            tlhc                = 121;
+            trhc                = 124;
+            brhc                = 127;
+
             
         case '16'
             
@@ -159,6 +200,11 @@ else
             image_user19 = 61;
             image_user20 = 62;
             image_user22 = 64;
+            image_user11        = 53;
+            tlhc                = 133;
+            trhc                = 136;
+            brhc                = 139;
+
             
         case {'20.006','20.007','24'}
             
@@ -191,6 +237,10 @@ else
             image_user19 = 109;
             image_user20 = 110;
             image_user22 = 112;
+            image_user11 = 101;
+            tlhc         = 181;
+            trhc         = 184;
+            brhc         = 187;
             
         case '26.002'
             
@@ -220,10 +270,14 @@ else
             
             % float
             image_user8  = 98;
+            image_user11 = 101;
             image_user19 = 109;
             image_user20 = 110;
             image_user22 = 112;
-            
+            tlhc = 181;
+            trhc = 184;
+            brhc = 187;
+
     end
     
     % Read rdb header as short, int and float
@@ -263,17 +317,31 @@ else
     fseek(fid, i_hdr_value(rdb_hdr_off_image), 'bof');
     t_hdr_value = fread(fid, image_te, 'integer*4');
     fseek(fid, i_hdr_value(rdb_hdr_off_image), 'bof');
-    o_hdr_value = fread(fid, image_user22, 'real*4');
+    o_hdr_value = fread(fid, brhc+2, 'real*4');
     MRS_struct.p.TE(ii) = t_hdr_value(image_te)/1e3;
     MRS_struct.p.TR(ii) = t_hdr_value(image_tr)/1e3;
     
     % MM (170127): Find voxel dimensions and edit pulse parameters
     MRS_struct.p.voxdim(ii,:) = o_hdr_value(image_user8:image_user8+2)';
+    MRS_struct.p.voxoff(ii,:) = o_hdr_value(image_user11:image_user11+2)';
+    MRS_struct.p.tlhc_RAS = o_hdr_value(tlhc:tlhc+2)';
+    MRS_struct.p.trhc_RAS = o_hdr_value(trhc:trhc+2)';
+    MRS_struct.p.brhc_RAS = o_hdr_value(brhc:brhc+2)';
     MRS_struct.p.GE.editRF.waveform(ii) = o_hdr_value(image_user19);
     MRS_struct.p.GE.editRF.freq_Hz(ii,:) = o_hdr_value(image_user20:image_user20+1)';
     MRS_struct.p.GE.editRF.freq_ppm(ii,:) = (MRS_struct.p.GE.editRF.freq_Hz(ii,:) / MRS_struct.p.LarmorFreq(ii)) + 4.68;
     MRS_struct.p.GE.editRF.dur(ii) = o_hdr_value(image_user22)/1e3;
     
+    
+    % CNI: read exam/series number info
+    if MRS_struct.p.GE.rdbm_rev_num == 26.002
+        fseek(fid, 199552, 'bof');  MRS_struct.p.ex_no = fread(fid, 1, 'uint16');          % image_hdr.im_exno
+        fseek(fid, 199564, 'bof');  MRS_struct.p.se_no = fread(fid, 1, 'int16');           % image_hdr.im_seno
+    elseif MRS_struct.p.GE.rdbm_rev_num == 24
+        fseek(fid, 148712, 'bof');  MRS_struct.p.ex_no = fread(fid, 1, 'uint16');          % image_hdr.im_exno
+        fseek(fid, 148724, 'bof');  MRS_struct.p.se_no = fread(fid, 1, 'int16');           % image_hdr.im_seno
+    end
+
 %%
 end
 

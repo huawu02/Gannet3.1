@@ -6,6 +6,8 @@ function MRS_struct = GannetMask_GE(fname, dcm_dir, MRS_struct, ii, vox, kk)
 % Code heavily based on Ralph Noeske's (GE Berlin) SV_MRI voxel
 % co-registration code.
 
+% deprecated code from Ralph Noeske
+%{
 % Parse P-file to extract voxel geometry
 if MRS_struct.p.GE.rdbm_rev_num(ii) >= 11.0
     fid = fopen(fname, 'r', 'ieee-le');
@@ -59,12 +61,13 @@ MRS_struct.p.voxoff(ii,:) = o_hdr_value(image_user11:image_user11+2)';
 tlhc_RAS = o_hdr_value(tlhc:tlhc+2)';
 trhc_RAS = o_hdr_value(trhc:trhc+2)';
 brhc_RAS = o_hdr_value(brhc:brhc+2)';
+%}
 
 % Convert from RAS to LPS
 MRS_struct.p.voxoff(ii,:) = MRS_struct.p.voxoff(ii,:) .* [-1 -1 1];
-tlhc_LPS = tlhc_RAS .* [-1 -1 1];
-trhc_LPS = trhc_RAS .* [-1 -1 1];
-brhc_LPS = brhc_RAS .* [-1 -1 1];
+tlhc_LPS = MRS_struct.p.tlhc_RAS .* [-1 -1 1];
+trhc_LPS = MRS_struct.p.trhc_RAS .* [-1 -1 1];
+brhc_LPS = MRS_struct.p.brhc_RAS .* [-1 -1 1];
 
 e1_SVS_n = trhc_LPS - tlhc_LPS;
 e1_SVS_n = e1_SVS_n ./ norm(e1_SVS_n);

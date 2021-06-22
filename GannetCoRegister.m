@@ -205,11 +205,15 @@ for ii = 1:numscans
         set(h,'PaperUnits','inches');
         set(h,'PaperSize',[11 8.5]);
         set(h,'PaperPosition',[0 0 11 8.5]);
-        
-        if strcmpi(MRS_struct.p.vendor,'Philips_data')
-            pdfname = fullfile(pwd, 'GannetCoRegister_output', [fullpath '_' vox{kk} '_coreg.pdf']);
+     
+        if ~isdeployed
+            if strcmpi(MRS_struct.p.vendor,'Philips_data')
+                pdfname = fullfile(pwd, 'GannetCoRegister_output', [fullpath '_' vox{kk} '_coreg.pdf']);
+            else
+                pdfname = fullfile(pwd, 'GannetCoRegister_output', [metabfile_nopath '_' vox{kk} '_coreg.pdf']);
+            end
         else
-            pdfname = fullfile(pwd, 'GannetCoRegister_output', [metabfile_nopath '_' vox{kk} '_coreg.pdf']);
+            pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_coreg.pdf'];
         end
         saveas(h, pdfname);
         
