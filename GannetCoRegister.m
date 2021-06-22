@@ -84,6 +84,8 @@ for ii = 1:numscans
             clf(103); % MM (170720)
         end
         h = figure(103);
+        set(h, 'Visible', 'off');   % CNI: don't pop up the figure
+
         % MM (170629): Open figure in center of screen
         scr_sz = get(0, 'ScreenSize');
         fig_w = 1000;
@@ -197,8 +199,10 @@ for ii = 1:numscans
         end
         
         % Create output folder
-        if ~exist(fullfile(pwd, 'GannetCoRegister_output'),'dir')
-            mkdir(fullfile(pwd, 'GannetCoRegister_output'));
+        if ~strcmp(MRS_struct.p.vendor, 'GE')
+            if ~exist(fullfile(pwd, 'GannetCoRegister_output'),'dir')
+                mkdir(fullfile(pwd, 'GannetCoRegister_output'));
+            end
         end
         
         % Save PDF output
@@ -206,14 +210,13 @@ for ii = 1:numscans
         set(h,'PaperSize',[11 8.5]);
         set(h,'PaperPosition',[0 0 11 8.5]);
      
-        if ~isdeployed
-            if strcmpi(MRS_struct.p.vendor,'Philips_data')
-                pdfname = fullfile(pwd, 'GannetCoRegister_output', [fullpath '_' vox{kk} '_coreg.pdf']);
-            else
-                pdfname = fullfile(pwd, 'GannetCoRegister_output', [metabfile_nopath '_' vox{kk} '_coreg.pdf']);
-            end
+        if strcmpi(MRS_struct.p.vendor,'Philips_data')
+            pdfname = fullfile(pwd, 'GannetCoRegister_output', [fullpath '_' vox{kk} '_coreg.pdf']);
         else
-            pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_coreg.pdf'];
+            pdfname = fullfile(pwd, 'GannetCoRegister_output', [metabfile_nopath '_' vox{kk} '_coreg.pdf']);
+        end
+        if strcmp(MRS_struct.p.vendor, 'GE')
+            pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_' vox{kk} '_coreg.pdf'];
         end
         saveas(h, pdfname);
         

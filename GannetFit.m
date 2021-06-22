@@ -1342,7 +1342,7 @@ for kk = 1:length(vox)
                 end
                 
                 % Create output folder
-                if ~isdeployed  
+                if ~strcmp(MRS_struct.p.vendor, 'GE')  
                     if ~exist(fullfile(pwd, 'GannetFit_output'),'dir')
                         mkdir(fullfile(pwd, 'GannetFit_output'));
                     end
@@ -1353,14 +1353,13 @@ for kk = 1:length(vox)
                 set(h,'PaperSize',[11 8.5]);
                 set(h,'PaperPosition',[0 0 11 8.5]);
                 
-                if ~isdeployed  
-                    if strcmpi(MRS_struct.p.vendor,'Philips_data')
-                        pdfname = fullfile(pwd, 'GannetFit_output', [fullpath '_' target{jj} '_' vox{kk} '_fit.pdf']);
-                    else
-                        pdfname = fullfile(pwd, 'GannetFit_output', [metabfile_nopath '_' target{jj} '_' vox{kk} '_fit.pdf']);
-                    end
+                if strcmpi(MRS_struct.p.vendor,'Philips_data')
+                    pdfname = fullfile(pwd, 'GannetFit_output', [fullpath '_' target{jj} '_' vox{kk} '_fit.pdf']);
                 else
-                    pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_MRSfit_' MRS_struct.p.target '.pdf'];
+                    pdfname = fullfile(pwd, 'GannetFit_output', [metabfile_nopath '_' target{jj} '_' vox{kk} '_fit.pdf']);
+                end
+                if strcmp(MRS_struct.p.vendor, 'GE')
+                    pdfname=['e' num2str(MRS_struct.p.ex_no) '_s' num2str(MRS_struct.p.se_no) '_' vox{kk} '_fit_' MRS_struct.p.target '.pdf'];
                 end
                 saveas(h, pdfname);
                 
