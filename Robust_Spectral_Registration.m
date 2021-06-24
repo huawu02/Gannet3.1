@@ -82,7 +82,9 @@ if r > r_threshold || q > q_threshold
         elseif lipid_flag && water_flag
             msg = sprintf('\nUnstable lipid contamination and residual water detected. Applying lipid and residual water filters to transient: %d\n', jj);
         end
-        fprintf([reverseStr, msg]);
+        if ~isdeployed
+            fprintf([reverseStr, msg]);
+        end
         reverseStr = repmat(sprintf('\b'), 1, length(msg));
         DataToAlign(:,jj) = SignalFilter(spec(:,jj), lipid_flag, water_flag, MRS_struct);
     end
@@ -158,7 +160,9 @@ while SpecRegLoop > -1
     for jj = alignOrd
         
         msg = sprintf('\nRobust spectral registration - Iteration: %d', iter);
-        fprintf([reverseStr, msg]);
+        if ~isdeployed
+            fprintf([reverseStr, msg]);
+        end
         reverseStr = repmat(sprintf('\b'), 1, length(msg));
         
         transient = squeeze(flatdata(:,:,jj));

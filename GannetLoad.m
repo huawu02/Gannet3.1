@@ -825,7 +825,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
             % Gannet logo
             Gannet_path = which('GannetLoad');
             Gannet_logo = [Gannet_path(1:end-13) '/Gannet3_logo.png'];
-            I = imread(Gannet_logo,'png','BackgroundColor',[1 1 1]);
+            I = imread(Gannet_logo,'BackgroundColor',[1 1 1]);
             axes('Position',[0.80, 0.05, 0.15, 0.15]);
             imshow(I);
             text(0.9, 0, MRS_struct.version.Gannet, 'Units', 'normalized', 'FontName', 'Arial', 'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'left');
